@@ -16,32 +16,41 @@ export default function App() {
 
         const prev = {
             htmlHeight: html.style.height,
+            htmlBackground: html.style.backgroundColor,
             bodyHeight: body.style.height,
             bodyOverflow: body.style.overflow,
-            bodyPosition: body.style.position,
+            bodyMargin: body.style.margin,
+            bodyBackground: body.style.backgroundColor,
             rootHeight: root?.style.height ?? '',
             rootOverflow: root?.style.overflow ?? '',
+            rootBackground: root?.style.backgroundColor ?? '',
         };
 
         html.style.height = '100%';
-        body.style.height = '100%';
+        html.style.backgroundColor = '#f7f0e8';
+        body.style.height = 'auto';
         body.style.overflow = 'auto';
-        body.style.position = 'relative';
+        body.style.margin = '0';
+        body.style.backgroundColor = '#f7f0e8';
 
         if (root) {
-            root.style.height = '100%';
-            root.style.overflow = 'auto';
+            root.style.height = 'auto';
+            root.style.overflow = 'visible';
+            root.style.backgroundColor = '#f7f0e8';
         }
 
         return () => {
             html.style.height = prev.htmlHeight;
+            html.style.backgroundColor = prev.htmlBackground;
             body.style.height = prev.bodyHeight;
             body.style.overflow = prev.bodyOverflow;
-            body.style.position = prev.bodyPosition;
+            body.style.margin = prev.bodyMargin;
+            body.style.backgroundColor = prev.bodyBackground;
 
             if (root) {
                 root.style.height = prev.rootHeight;
                 root.style.overflow = prev.rootOverflow;
+                root.style.backgroundColor = prev.rootBackground;
             }
         };
     }, []);

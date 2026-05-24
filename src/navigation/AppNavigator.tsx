@@ -1,7 +1,8 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { theme } from '../styles/theme';
 
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
@@ -12,16 +13,33 @@ import { AdminScreen } from '../screens/AdminScreen';
 
 const Stack = createStackNavigator();
 
+const navTheme = {
+    ...DefaultTheme,
+    colors: {
+        ...DefaultTheme.colors,
+        background: theme.colors.sand,
+    },
+};
+
 export const AppNavigator = () => {
     const { user } = useAuth();
 
     return (
-        <NavigationContainer>
+        <NavigationContainer theme={navTheme}>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {!user ? (
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} />
-                        <Stack.Screen name="Register" component={RegisterScreen} />
+                        <Stack.Screen
+                            name="Register"
+                            component={RegisterScreen}
+                            options={{
+                                headerShown: true,
+                                title: 'Cadastro',
+                                headerBackTitleVisible: false,
+                                headerTitleAlign: 'center',
+                            }}
+                        />
                     </>
                 ) : (
                     <>

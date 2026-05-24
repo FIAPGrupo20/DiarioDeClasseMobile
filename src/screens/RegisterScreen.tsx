@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+} from 'react-native';
 import api from '../services/api';
 import { theme } from '../styles/theme';
 import { FeedbackBanner } from '../components/FeedbackBanner';
@@ -7,6 +18,7 @@ import { SelectField } from '../components/SelectField';
 import { DISCIPLINAS_ENSINO_MEDIO } from '../constants/disciplinas';
 
 export const RegisterScreen = ({ navigation }: any) => {
+    const isWeb = Platform.OS === 'web';
     const [role, setRole] = useState<'professor' | 'aluno'>('aluno');
     const [nome, setNome] = useState('');
     const [email, setEmail] = useState('');
@@ -29,10 +41,6 @@ export const RegisterScreen = ({ navigation }: any) => {
         try {
             const payload: any = { nome, email, senha };
 
-            if (role === 'alunos') { // Ajustando para o que a API espera
-                // Na verdade o endpoint do backend é /alunos ou /professores
-            }
-
             if (role === 'professor') {
                 await api.post('/professores', { ...payload, disciplina: extra });
             } else {
@@ -53,8 +61,8 @@ export const RegisterScreen = ({ navigation }: any) => {
         }
     };
 
-    return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    const formContent = (
+        <>
             <Text style={styles.title}>Criar Conta</Text>
 
             {!!successMessage && <FeedbackBanner message={successMessage} variant="success" />}
@@ -123,7 +131,43 @@ export const RegisterScreen = ({ navigation }: any) => {
             <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.linkButton}>
                 <Text style={styles.linkText}>Já tem uma conta? <Text style={styles.linkHighlight}>Entrar</Text></Text>
             </TouchableOpacity>
-        </ScrollView>
+
+            <TouchableOpacity
+                onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login'))}
+                style={styles.backButton}
+            >
+                <Text style={styles.backText}>Voltar para login</Text>
+            </TouchableOpacity>
+        </>
+    );
+
+    if (isWeb) {
+        return (
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={[styles.content, styles.webContent]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                {formContent}
+            </ScrollView>
+        );
+    }
+
+    return (
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                {formContent}
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -132,10 +176,19 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.sand,
     },
+    scroll: {
+        flex: 1,
+    },
     content: {
         padding: 20,
-        paddingTop: 80,
+        paddingTop: 28,
         paddingBottom: 40,
+        flexGrow: 1,
+    },
+    webContent: {
+        maxWidth: 620,
+        width: '100%',
+        alignSelf: 'center',
     },
     title: {
         fontSize: 32,
@@ -204,5 +257,13 @@ const styles = StyleSheet.create({
     linkHighlight: {
         color: theme.colors.accent,
         fontWeight: 'bold',
+    },
+    backButton: {
+        marginTop: 14,
+        alignItems: 'center',
+    },
+    backText: {
+        color: theme.colors.mutedInk,
+        fontSize: 15,
     },
 });

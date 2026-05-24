@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     TextInput,
     useWindowDimensions,
+    Platform,
 } from 'react-native';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -36,6 +37,7 @@ export const HomeScreen = ({ navigation }: any) => {
     const [orderBy, setOrderBy] = useState<'dataCriacao' | 'titulo'>('dataCriacao');
     const [order, setOrder] = useState<'asc' | 'desc'>('desc');
     const { user, logout } = useAuth();
+    const isWeb = Platform.OS === 'web';
     const { width } = useWindowDimensions();
     const isWide = width >= 820;
     const disciplineOptions = DISCIPLINAS_ENSINO_MEDIO.map((item) => ({ label: item, value: item }));
@@ -124,125 +126,152 @@ export const HomeScreen = ({ navigation }: any) => {
         </TouchableOpacity>
     );
 
-    return (
-        <View style={styles.container}>
-            <View style={[styles.header, isWide && styles.headerWide]}>
-                <View>
-                    <Text style={styles.welcome}>Olá, {user?.nome}</Text>
-                    <Text style={styles.role}>{user?.role === 'professor' ? 'Professor' : 'Aluno'}</Text>
+    const listHeader = (
+        <View>
+            <View style={styles.heroCard}>
+                <Text style={styles.heroTag}>Leitura publica</Text>
+                <Text style={styles.heroTitle}>Postagens educacionais com acesso aberto e autoria protegida.</Text>
+                <Text style={styles.heroText}>Alunos podem navegar livremente pelos conteudos. Professores autenticados criam, editam e administram o acervo.</Text>
+            </View>
+
+            <View style={styles.filtersCard}>
+                <Text style={styles.filtersTitle}>Filtros de busca</Text>
+
+                <View style={[styles.filterGrid, isWide && styles.filterGridWide]}>
+                    <View style={styles.filterBlock}>
+                        <Text style={styles.filterLabel}>Palavras-chave</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={texto}
+                            onChangeText={setTexto}
+                            placeholder="Ex: matematica, cidadania"
+                            placeholderTextColor={theme.colors.mutedInk}
+                        />
+                    </View>
+
+                    <View style={styles.filterBlock}>
+                        <Text style={styles.filterLabel}>Professor</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={professor}
+                            onChangeText={setProfessor}
+                            placeholder="Ex: Joao, Maria"
+                            placeholderTextColor={theme.colors.mutedInk}
+                        />
+                    </View>
                 </View>
 
-                <View style={[styles.headerActions, isWide && styles.headerActionsWide]}>
-                    {user?.role === 'professor' && (
-                        <TouchableOpacity onPress={() => navigation.navigate('CreatePost')} style={styles.createButton}>
-                            <Text style={styles.createText}>Nova postagem</Text>
-                        </TouchableOpacity>
-                    )}
-                    {user?.role === 'professor' && (
-                        <TouchableOpacity onPress={() => navigation.navigate('Admin')} style={styles.adminButton}>
-                            <Text style={styles.adminText}>Gestão</Text>
-                        </TouchableOpacity>
-                    )}
-                    <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-                        <Text style={styles.logoutText}>Sair</Text>
+                <SelectField
+                    label="Disciplina"
+                    value={disciplina}
+                    onValueChange={setDisciplina}
+                    options={disciplineOptions}
+                    placeholder="Todas as disciplinas"
+                    allowEmptyOption
+                />
+
+                <View style={[styles.filterGrid, isWide && styles.filterGridWide]}>
+                    <SelectField
+                        label="Ordenar por"
+                        value={orderBy}
+                        onValueChange={(value) => setOrderBy(value as 'dataCriacao' | 'titulo')}
+                        options={orderByOptions}
+                        placeholder="Mais recentes"
+                    />
+
+                    <SelectField
+                        label="Ordem"
+                        value={order}
+                        onValueChange={(value) => setOrder(value as 'asc' | 'desc')}
+                        options={orderOptions}
+                        placeholder="Decrescente"
+                    />
+                </View>
+
+                <View style={styles.filtersFooter}>
+                    <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+                        <Text style={styles.clearButtonText}>Limpar filtros</Text>
                     </TouchableOpacity>
+                    <Text style={styles.resultCount}>
+                        {visiblePosts.length} resultado{visiblePosts.length !== 1 ? 's' : ''}
+                    </Text>
                 </View>
             </View>
 
-            {loading ? (
-                <ActivityIndicator size="large" color={theme.colors.accent} style={{ flex: 1 }} />
-            ) : (
-                <FlatList
-                    style={styles.listRoot}
-                    data={visiblePosts}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={renderItem}
-                    contentContainerStyle={[styles.list, styles.listGrow, isWide && styles.listWide]}
-                    scrollEnabled
-                    showsVerticalScrollIndicator
-                    refreshing={refreshing}
-                    nestedScrollEnabled
-                    onRefresh={() => {
-                        setRefreshing(true);
-                        fetchPosts();
-                    }}
-                    ListHeaderComponent={(
-                        <View>
-                            <View style={styles.heroCard}>
-                                <Text style={styles.heroTag}>Leitura pública</Text>
-                                <Text style={styles.heroTitle}>Postagens educacionais com acesso aberto e autoria protegida.</Text>
-                                <Text style={styles.heroText}>Alunos podem navegar livremente pelos conteúdos. Professores autenticados criam, editam e administram o acervo.</Text>
-                            </View>
+            {!!errorMessage && <FeedbackBanner message={errorMessage} variant="error" />}
+        </View>
+    );
 
-                            <View style={styles.filtersCard}>
-                                <Text style={styles.filtersTitle}>Filtros de busca</Text>
+    const headerBlock = (
+        <View style={[styles.header, isWide && styles.headerWide]}>
+            <View>
+                <Text style={styles.welcome}>Olá, {user?.nome}</Text>
+                <Text style={styles.role}>{user?.role === 'professor' ? 'Professor' : 'Aluno'}</Text>
+            </View>
 
-                                <View style={[styles.filterGrid, isWide && styles.filterGridWide]}>
-                                    <View style={styles.filterBlock}>
-                                        <Text style={styles.filterLabel}>Palavras-chave</Text>
-                                        <TextInput
-                                            style={styles.input}
-                                            value={texto}
-                                            onChangeText={setTexto}
-                                            placeholder="Ex: matemática, cidadania"
-                                            placeholderTextColor={theme.colors.mutedInk}
-                                        />
-                                    </View>
+            <View style={[styles.headerActions, isWide && styles.headerActionsWide]}>
+                {user?.role === 'professor' && (
+                    <TouchableOpacity onPress={() => navigation.navigate('CreatePost')} style={styles.createButton}>
+                        <Text style={styles.createText}>Nova postagem</Text>
+                    </TouchableOpacity>
+                )}
+                {user?.role === 'professor' && (
+                    <TouchableOpacity onPress={() => navigation.navigate('Admin')} style={styles.adminButton}>
+                        <Text style={styles.adminText}>Gestão</Text>
+                    </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+                    <Text style={styles.logoutText}>Sair</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
 
-                                    <View style={styles.filterBlock}>
-                                        <Text style={styles.filterLabel}>Professor</Text>
-                                        <TextInput
-                                            style={styles.input}
-                                            value={professor}
-                                            onChangeText={setProfessor}
-                                            placeholder="Ex: João, Maria"
-                                            placeholderTextColor={theme.colors.mutedInk}
-                                        />
-                                    </View>
-                                </View>
-
-                                <SelectField
-                                    label="Disciplina"
-                                    value={disciplina}
-                                    onValueChange={setDisciplina}
-                                    options={disciplineOptions}
-                                    placeholder="Todas as disciplinas"
-                                    allowEmptyOption
-                                />
-
-                                <View style={[styles.filterGrid, isWide && styles.filterGridWide]}>
-                                    <SelectField
-                                        label="Ordenar por"
-                                        value={orderBy}
-                                        onValueChange={(value) => setOrderBy(value as 'dataCriacao' | 'titulo')}
-                                        options={orderByOptions}
-                                        placeholder="Mais recentes"
-                                    />
-
-                                    <SelectField
-                                        label="Ordem"
-                                        value={order}
-                                        onValueChange={(value) => setOrder(value as 'asc' | 'desc')}
-                                        options={orderOptions}
-                                        placeholder="Decrescente"
-                                    />
-                                </View>
-
-                                <View style={styles.filtersFooter}>
-                                    <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
-                                        <Text style={styles.clearButtonText}>Limpar filtros</Text>
-                                    </TouchableOpacity>
-                                    <Text style={styles.resultCount}>
-                                        {visiblePosts.length} resultado{visiblePosts.length !== 1 ? 's' : ''}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {!!errorMessage && <FeedbackBanner message={errorMessage} variant="error" />}
+    return (
+        <View style={styles.container}>
+            {isWeb ? (
+                loading ? (
+                    <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 32 }} />
+                ) : (
+                    <View style={isWide && styles.listWide}>
+                        {headerBlock}
+                        <View style={styles.list}>
+                            {listHeader}
+                            {visiblePosts.length === 0 ? (
+                                <Text style={styles.empty}>Nenhuma postagem encontrada com os filtros aplicados.</Text>
+                            ) : (
+                                visiblePosts.map((item) => (
+                                    <View key={item.id.toString()}>{renderItem({ item })}</View>
+                                ))
+                            )}
                         </View>
+                    </View>
+                )
+            ) : (
+                <>
+                    {headerBlock}
+                    {loading ? (
+                        <ActivityIndicator size="large" color={theme.colors.accent} style={{ flex: 1 }} />
+                    ) : (
+                        <FlatList
+                            style={styles.listRoot}
+                            data={visiblePosts}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={renderItem}
+                            contentContainerStyle={[styles.list, styles.listGrow, isWide && styles.listWide]}
+                            scrollEnabled
+                            showsVerticalScrollIndicator
+                            refreshing={refreshing}
+                            nestedScrollEnabled
+                            onRefresh={() => {
+                                setRefreshing(true);
+                                fetchPosts();
+                            }}
+                            ListHeaderComponent={listHeader}
+                            ListEmptyComponent={<Text style={styles.empty}>Nenhuma postagem encontrada com os filtros aplicados.</Text>}
+                        />
                     )}
-                    ListEmptyComponent={<Text style={styles.empty}>Nenhuma postagem encontrada com os filtros aplicados.</Text>}
-                />
+                </>
             )}
         </View>
     );

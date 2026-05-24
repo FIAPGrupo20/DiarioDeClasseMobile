@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { theme } from '../styles/theme';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -7,8 +7,32 @@ import api from '../services/api';
 export const PostDetailScreen = ({ route, navigation }: any) => {
     const { post } = route.params;
     const { user } = useAuth();
+    const postId = Number(post?.id ?? post?._id);
 
     const handleDelete = () => {
+        if (!Number.isFinite(postId) || postId <= 0) {
+            Alert.alert('Erro', 'Postagem inválida para exclusão. Atualize a lista e tente novamente.');
+            return;
+        }
+
+        const performDelete = async () => {
+            try {
+                await api.delete(`/posts/${postId}`);
+                navigation.navigate('Home');
+            } catch (error: any) {
+                const message = error?.response?.data?.message || 'Não foi possível excluir o post';
+                Alert.alert('Erro', message);
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            const accepted = (globalThis as any).confirm?.('Deseja realmente excluir este post?');
+            if (accepted) {
+                performDelete();
+            }
+            return;
+        }
+
         Alert.alert(
             'Confirmar Exclusão',
             'Deseja realmente excluir este post?',
@@ -17,14 +41,7 @@ export const PostDetailScreen = ({ route, navigation }: any) => {
                 {
                     text: 'Excluir',
                     style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.delete(`/posts/${post.id}`);
-                            navigation.navigate('Home');
-                        } catch (error) {
-                            Alert.alert('Erro', 'Não foi possível excluir o post');
-                        }
-                    }
+                    onPress: performDelete
                 }
             ]
         );

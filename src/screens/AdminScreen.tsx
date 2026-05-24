@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import api from '../services/api';
 import { theme } from '../styles/theme';
 import { FeedbackBanner } from '../components/FeedbackBanner';
@@ -7,6 +7,7 @@ import { SelectField } from '../components/SelectField';
 import { DISCIPLINAS_ENSINO_MEDIO } from '../constants/disciplinas';
 
 export const AdminScreen = () => {
+    const isWeb = Platform.OS === 'web';
     const [tab, setTab] = useState<'alunos' | 'professores'>('alunos');
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,6 +23,12 @@ export const AdminScreen = () => {
     const [senha, setSenha] = useState('');
     const [extra, setExtra] = useState(''); // Turma para aluno, Disciplina para professor
     const disciplineOptions = DISCIPLINAS_ENSINO_MEDIO.map((item) => ({ label: item, value: item }));
+
+    const resolveEntityId = (entity: any): number | null => {
+        const rawId = entity?.id ?? entity?._id;
+        const parsedId = Number(rawId);
+        return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -74,15 +81,40 @@ export const AdminScreen = () => {
         }
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = (entity: any) => {
+        const id = resolveEntityId(entity);
+
+        if (!id) {
+            const message = 'Não foi possível identificar o registro para exclusão.';
+            setErrorMessage(message);
+            Alert.alert('Erro', message);
+            return;
+        }
+
+        const performDelete = async () => {
+            try {
+                await api.delete(`/${tab}/${id}`);
+                setSuccessMessage(`${tab === 'alunos' ? 'Aluno' : 'Professor'} removido com sucesso.`);
+                setTimeout(() => setSuccessMessage(''), 1800);
+                fetchData();
+            } catch (error: any) {
+                const message = error?.response?.data?.message || 'Não foi possível remover o registro.';
+                setErrorMessage(message);
+                Alert.alert('Erro', message);
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            const accepted = (globalThis as any).confirm?.('Deseja remover este registro?');
+            if (accepted) {
+                performDelete();
+            }
+            return;
+        }
+
         Alert.alert('Confirmar', 'Deseja remover?', [
             { text: 'Não' },
-            {
-                text: 'Sim', onPress: async () => {
-                    await api.delete(`/${tab}/${id}`);
-                    fetchData();
-                }
-            }
+            { text: 'Sim', onPress: performDelete }
         ]);
     };
 
@@ -100,19 +132,27 @@ export const AdminScreen = () => {
             {!!successMessage && <FeedbackBanner message={successMessage} variant="success" />}
             {!!errorMessage && <FeedbackBanner message={errorMessage} variant="error" />}
 
-            <View style={styles.tabContainer}>
-                <TouchableOpacity
-                    style={[styles.tab, tab === 'alunos' && styles.tabActive]}
-                    onPress={() => setTab('alunos')}
-                >
-                    <Text style={[styles.tabText, tab === 'alunos' && styles.tabTextActive]}>Alunos</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, tab === 'professores' && styles.tabActive]}
-                    onPress={() => setTab('professores')}
-                >
-                    <Text style={[styles.tabText, tab === 'professores' && styles.tabTextActive]}>Professores</Text>
-                </TouchableOpacity>
+            <View style={[styles.tabContainer, isWeb && styles.tabContainerWeb]}>
+                <View style={styles.tabSwitcher}>
+                    <TouchableOpacity
+                        style={[styles.tab, tab === 'alunos' && styles.tabActive]}
+                        onPress={() => setTab('alunos')}
+                    >
+                        <Text style={[styles.tabText, tab === 'alunos' && styles.tabTextActive]}>Alunos</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, tab === 'professores' && styles.tabActive]}
+                        onPress={() => setTab('professores')}
+                    >
+                        <Text style={[styles.tabText, tab === 'professores' && styles.tabTextActive]}>Professores</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {isWeb && (
+                    <TouchableOpacity style={styles.webAddButton} onPress={() => openModal()}>
+                        <Text style={styles.webAddButtonText}>Cadastrar</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {loading ? (
@@ -121,7 +161,7 @@ export const AdminScreen = () => {
                 <FlatList
                     style={styles.listRoot}
                     data={data}
-                    keyExtractor={(item) => item.id.toString()}
+                    keyExtractor={(item, index) => String(resolveEntityId(item) ?? index)}
                     contentContainerStyle={styles.list}
                     scrollEnabled
                     showsVerticalScrollIndicator
@@ -136,7 +176,7 @@ export const AdminScreen = () => {
                                 <TouchableOpacity onPress={() => openModal(item)} style={styles.actionBtn}>
                                     <Text style={{ color: theme.colors.sage }}>Editar</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.actionBtn}>
+                                <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionBtn}>
                                     <Text style={{ color: theme.colors.danger }}>Excluir</Text>
                                 </TouchableOpacity>
                             </View>
@@ -145,9 +185,11 @@ export const AdminScreen = () => {
                 />
             )}
 
-            <TouchableOpacity style={styles.fab} onPress={() => openModal()}>
-                <Text style={styles.fabText}>+</Text>
-            </TouchableOpacity>
+            {!isWeb && (
+                <TouchableOpacity style={styles.fab} onPress={() => openModal()}>
+                    <Text style={styles.fabText}>+</Text>
+                </TouchableOpacity>
+            )}
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
@@ -193,11 +235,20 @@ export const AdminScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, minHeight: 0, backgroundColor: theme.colors.sand },
-    tabContainer: { flexDirection: 'row', backgroundColor: theme.colors.paper, padding: 10, paddingTop: 60 },
+    tabContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.paper, padding: 10, paddingTop: 60, gap: 12 },
+    tabContainerWeb: { paddingTop: 12 },
+    tabSwitcher: { flex: 1, flexDirection: 'row' },
     tab: { flex: 1, padding: 15, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
     tabActive: { borderBottomColor: theme.colors.accent },
     tabText: { fontWeight: 'bold', color: theme.colors.mutedInk },
     tabTextActive: { color: theme.colors.accent },
+    webAddButton: {
+        backgroundColor: theme.colors.ink,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 999,
+    },
+    webAddButtonText: { color: '#fff', fontWeight: '700' },
     listRoot: { flex: 1, minHeight: 0 },
     list: { padding: 15 },
     item: {
